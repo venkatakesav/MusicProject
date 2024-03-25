@@ -39,23 +39,26 @@ def encrypt(plaintext, alphabet_swara):
             ciphertext += ' Pa'
     return ciphertext
 
-# Mapping Ri to Ri1, etc
 def map_shorthand_swaras(swaras):
-    full_swaras = []
-    for swara in swaras:
-        if swara == 'Ri':
-            full_swaras.append('Ri1')
-        elif swara == 'Ga':
-            full_swaras.append('Ga3')
-        elif swara == 'Ma':
-            full_swaras.append('Ma1')
-        elif swara == 'Dha':
-            full_swaras.append('Dha1')
-        elif swara == 'Ni':
-            full_swaras.append('Ni3')
-        else:
-            full_swaras.append(swara)
-    return full_swaras
+    shorthand_to_full = {
+        'Ri': 'Ri1',
+        'Ga': 'Ga3',
+        'Ma': 'Ma1',
+        'Dha': 'Dha1',
+        'Ni': 'Ni3'
+    }
+    return [shorthand_to_full.get(swara, swara) for swara in swaras]
+
+def reverse_map_full_swaras(full_swaras):
+    full_to_shorthand = {
+        'Ri1': 'Ri',
+        'Ga3': 'Ga',
+        'Ma1': 'Ma',
+        'Dha1': 'Dha',
+        'Ni3': 'Ni'
+    }
+    return [full_to_shorthand.get(swara, swara) for swara in full_swaras]
+
 
 # Music generation
 def generate_freqency_list(swara_sequence):
@@ -136,35 +139,56 @@ def get_frequency_list(audio_file, window_size, overlap,swara_freq):
     for freq in frequency_list:
         nearest = min(swara_freq.values(), key=lambda x: abs(x - freq))
         nearest_swara.append([key for key, value in swara_freq.items() if value == nearest][0])
-    return nearest_swara
+    return reverse_map_full_swaras(nearest_swara)
 
-# def decrypt_swara(swara_list, alphabet_swara):
-#     plaintext = ''
-#     words=[]
-#     word_list = []
-#     for i in range(len(swara_list)-1):
-#         if(swara_list[i]=="Pa" and swara_list[i+1]=="Pa"):
-#             words.append(word_list)
-#             word_list.clear()
-#             continue
-#         word_list.append(swara_list[i])
-#     return plaintext
+def decrypt_swara(swara_list):
+    plaintext = ''
+    words=[]
+    word_list = []
+    for i in range(len(swara_list)-1):
+        if(swara_list[i]=="Pa" and swara_list[i-1]=="Pa"):
+            continue
+        if(swara_list[i]=="Pa" and swara_list[i+1]=="Pa"):
+            # print(word_list)
+            words.append(word_list.copy())
+            word_list.clear()
+            continue
+        word_list.append(swara_list[i])
+    list_of_strings=[]
+    for word in words:
+        characters=[]
+        swara_subseq=''
+        for i in range(len(word)):
+            if word[i] == "Pa":
+                swara_subseq= swara_subseq[:-1]+"Pa"
+                continue
+            swara_subseq+=word[i] + " "
+        # print(swara_subseq)
+        list_of_strings.append(swara_subseq)
+    single_string=''
+    for string in list_of_strings:
+        single_string +=string[:-1] + "Pa Pa"
+    return single_string[:-5]+"Pa"
 
 # Example usage
 plaintext = "Knowledge is power"
+print(plaintext)
 raga = "Mayamalavagowla"
 ciphertext = encrypt(plaintext, alphabet_swara_Mayamalavagowla)
 print("Ciphertext:", ciphertext)
 freq_list = generate_freqency_list(ciphertext)
-print(freq_list,len(freq_list))
 
 sampling_rate=44100
 music = generate_audio_sequence(freq_list)
+
+
 audio_file = "audio_sequence.wav"  # Replace with your audio file path
 duration=0.5
 window_size = int(duration * sampling_rate)  # Window size for FFT (0.5 seconds)
 overlap = 0
 swara_list = get_frequency_list(audio_file, window_size, overlap,swara_freq)
-# print(swara_list)
-# decrypted_text = decrypt_swara(swara_list, alphabet_swara_Mayamalavagowla)
-# print("Decrypted text:", decrypted_text)
+
+decrypted_cypher = decrypt_swara(swara_list)
+print(decrypted_cypher)
+decrypted_text = decrypt_ciphertext(decrypted_cypher,alphabet_swara_Mayamalavagowla)
+print("Decrypted text:", decrypted_text)
