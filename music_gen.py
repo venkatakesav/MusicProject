@@ -1,12 +1,10 @@
 import numpy as np
-from pydub import AudioSegment
-# from pydub.generators import sine_wave
 
 # Table I: Swara-Frequency Mapping
 swara_freq = {
-    'Sa': 260.29, 'Ri1': 277.84, 'Ri2, Ga1': 293.08, 'Ri3, Ga2': 309.66,
+    'Sa': 260.29, 'Ri1': 277.84, 'Ri2':293.08, 'Ga1': 293.08, 'Ri3':309.66, 'Ga2': 309.66,
     'Ga3': 330.28, 'Ma1': 346.90, 'Ma2': 372.19, 'Pa': 390.61,
-    'Dha1': 414.82, 'Dha2, Ni1': 440.00, 'Dha3, Ni2': 462.33, 'Ni3': 495.84
+    'Dha1': 414.82, 'Dha2':440.00, 'Ni1': 440.00, 'Dha3':462.33, 'Ni2': 462.33, 'Ni3': 495.84
 }
 
 # Table II: Plaintext Alphabet-Swara Sequence Mapping
@@ -39,18 +37,38 @@ def encrypt(plaintext, alphabet_swara):
             ciphertext += ' Pa'
     return ciphertext
 
+# Mapping Ri to Ri1, etc
+def map_shorthand_swaras(swaras):
+    full_swaras = []
+    for swara in swaras:
+        if swara == 'Ri':
+            full_swaras.append('Ri1')
+        elif swara == 'Ga':
+            full_swaras.append('Ga3')
+        elif swara == 'Ma':
+            full_swaras.append('Ma1')
+        elif swara == 'Dha':
+            full_swaras.append('Dha1')
+        elif swara == 'Ni':
+            full_swaras.append('Ni3')
+        else:
+            full_swaras.append(swara)
+    return full_swaras
+
 # Music generation
-# def generate_music(swara_sequence, sample_rate=44100):
-#     music = AudioSegment.silent(duration=0)
-#     for rage in swara_sequence.split('Pa'):
-#         if swara == '':
-#             continue
-#         freq = [swara_freq[s] for s in swara.split()]
-#         duration = 0.5  # Duration of each note in seconds
-#         samples = np.linspace(0, duration, int(duration * sample_rate), False)
-#         wave = np.sum([sine_wave(samples, freq=f, volume=-6.0) for f in freq], axis=0)
-#         music += AudioSegment(wave.astype(np.int16), frame_rate=sample_rate, channels=1)
-#     # return music
+def generate_freqency_list(swara_sequence):
+    swara_list = []
+    for word in swara_sequence.split('Pa Pa'):
+        for character in word.split("Pa"):
+            if(character != ""):
+                swara_list.extend(character.split())
+                swara_list.extend("Pa".split())
+        swara_list.extend("Pa".split())
+    swara_list = map_shorthand_swaras(swara_list)
+    freq_list = []
+    for swara in swara_list:
+        freq_list.append(swara_freq[swara])
+    return freq_list
 
 # Decryption
 def decrypt(ciphertext, alphabet_swara):
@@ -68,7 +86,7 @@ plaintext = "Knowledge is power"
 raga = "Mayamalavagowla"
 ciphertext = encrypt(plaintext, alphabet_swara_Mayamalavagowla)
 print("Ciphertext:", ciphertext)
-# music = generate_music(ciphertext)
-# music.export("output.wav", format="wav")
+freq_list = generate_freqency_list(ciphertext)
+# music = generate_music(freq_list,alphabet_swara_Mayamalavagowla)
 decrypted_text = decrypt(ciphertext, alphabet_swara_Mayamalavagowla)
 print("Decrypted text:", decrypted_text)
