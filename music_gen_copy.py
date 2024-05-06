@@ -1,8 +1,28 @@
 import numpy as np
-from scipy.io.wavfile import write
 from scipy.io import wavfile
-import json
-import mido
+from scipy.io.wavfile import write
+
+
+# Table I: Swara-Frequency Mapping
+swara_freq = {
+    'Sa': 260.29, 'Ri1': 277.84, 'Ri2':293.08, 'Ga1': 293.08, 'Ri3':309.66, 'Ga2': 309.66,
+    'Ga3': 330.28, 'Ma1': 346.90, 'Ma2': 372.19, 'Pa': 390.61,
+    'Dha1': 414.82, 'Dha2':440.00, 'Ni1': 440.00, 'Dha3':462.33, 'Ni2': 462.33, 'Ni3': 495.84
+}
+
+# Table II: Plaintext Alphabet-Swara Sequence Mapping
+alphabet_swara_Mayamalavagowla = {
+    'A': 'Ma Dha', 'B': 'Ri Dha Ni', 'C': 'Sa Ma', 'D': 'Ri Ga',
+    'E': 'Dha Ni', 'F': 'Sa Ri', 'G': 'Ga Ma Ni', 'H': 'Ri Dha',
+    'I': 'Ga Ni', 'J': 'Ri Ga Dha', 'K': 'Ri Ma Dha', 'L': 'Sa Ni',
+    'M': 'Sa Ga', 'N': 'Ga Dha', 'O': 'Ga Ma', 'P': 'Ga Ma Dha',
+    'Q': 'Ri Ga Ni', 'R': 'Ri Ma', 'S': 'Ri Ni', 'T': 'Ma Ni',
+    'U': 'Sa Dha', 'V': 'Ri Ma Ni', 'W': 'Ma Dha Ni', 'X': 'Ri Ga Ma',
+    'Y': 'Ga Dha Ni', 'Z': 'Sa Ma Ni', ' ': 'Pa Pa'
+}
+
+def get_value(alphabet_swara, key):
+    return alphabet_swara.get(key, None)
 
 def get_key(alphabet_swara, value):
     for k, v in alphabet_swara.items():
@@ -20,17 +40,7 @@ def encrypt(plaintext, alphabet_swara):
             ciphertext += ' Pa'
     return ciphertext
 
-def map_shorthand_swaras(swaras,raga_seq):
-    for i,swara in enumerate(swaras):
-        #get index of substring swara in raga_seq
-        index = raga_seq.find(swara)
-        if(swara!="Pa" and swara!="Dha" and swara!="Sa"):
-            num = raga_seq[index+2:index+3]
-            swaras[i] = swara+num
-        elif(swara=="Dha"):    
-            num = raga_seq[index+3:index+4]
-            swaras[i] = swara+num
-    return swaras
+def map_shorthand_swaras(swaras):
     shorthand_to_full = {
         'Ri': 'Ri1',
         'Ga': 'Ga3',
@@ -41,12 +51,6 @@ def map_shorthand_swaras(swaras,raga_seq):
     return [shorthand_to_full.get(swara, swara) for swara in swaras]
 
 def reverse_map_full_swaras(full_swaras):
-    for (i,swara) in enumerate(full_swaras):
-        if(len(swara))==3:
-            full_swaras[i]=swara[:2]
-        elif(len(swara))==4:
-            full_swaras[i]=swara[:3]
-    return full_swaras
     full_to_shorthand = {
         'Ri1': 'Ri',
         'Ga3': 'Ga',
@@ -58,7 +62,7 @@ def reverse_map_full_swaras(full_swaras):
 
 
 # Music generation
-def generate_freqency_list(swara_sequence,raga_seq):
+def generate_freqency_list(swara_sequence):
     swara_list = []
     for word in swara_sequence.split('Pa Pa'):
         for character in word.split("Pa"):
@@ -66,7 +70,7 @@ def generate_freqency_list(swara_sequence,raga_seq):
                 swara_list.extend(character.split())
                 swara_list.extend("Pa".split())
         swara_list.extend("Pa".split())
-    swara_list = map_shorthand_swaras(swara_list,raga_seq)
+    swara_list = map_shorthand_swaras(swara_list)
     freq_list = []
     for swara in swara_list:
         freq_list.append(swara_freq[swara])
@@ -83,7 +87,8 @@ def decrypt_ciphertext(ciphertext, alphabet_swara):
                 plaintext += get_key(alphabet_swara, swara_seq)
     return plaintext
 
-def generate_audio_sequence(frequency_list, duration=0.5, sampling_rate=44100, output_file="audio_sequence.wav", output_midi="audio_sequence.mid"):
+
+def generate_audio_sequence(frequency_list, duration=0.5, sampling_rate=44100, output_wav="audio_sequence.wav", output_midi="audio_sequence.mid"):
     """
     Generate an audio sequence based on a list of frequencies and write it to a WAV file and a MIDI file.
 
@@ -97,7 +102,6 @@ def generate_audio_sequence(frequency_list, duration=0.5, sampling_rate=44100, o
     Returns:
         None
     """
-    output_wav = output_file
     # Function to generate sine wave for a given frequency
     def generate_sine_wave(frequency, duration, sampling_rate):
         t = np.linspace(0, duration, int(sampling_rate * duration), endpoint=False)
@@ -134,10 +138,6 @@ def generate_audio_sequence(frequency_list, duration=0.5, sampling_rate=44100, o
 
     # Save the MIDI file
     midi_file.save(output_midi)
-
-def scoring(audio_file):
-    score = random.randint(0,100)
-    return score
 
 def midi_note_number(frequency):
     """
@@ -205,95 +205,25 @@ def decrypt_swara(swara_list):
         single_string +=string[:-1] + "Pa Pa"
     return single_string[:-5]+"Pa"
 
-def best_look_up_table(look_up_tables,plaintext):
-    max_score = 0
-    best_look_up_table = None
-    a=0
-    for look_up_table in look_up_tables:
-        alphabet_swara = look_up_table
-        ciphertext = encrypt(plaintext, alphabet_swara)
-        freq_list = generate_freqency_list(ciphertext,arohana_swara[raga])
-        audio_file = "./midi_files/audio_sequence.wav"
-        sampling_rate=4000
-        duration=0.25
-        music = generate_audio_sequence(freq_list,duration=duration,sampling_rate=sampling_rate,output_file=audio_file,output_midi=f"./midi_files/audio_sequence_{a}.mid")
-        a+=1
-
-    for i in range(a):
-        audio_file = f"./midi_files/audio_sequence_{i}.mid"
-        score = scoring(audio_file)
-        if score > max_score:
-            max_score = score
-            best_look_up_table = look_up_tables[i]
-    return best_look_up_table
 # Example usage
-
-# Table I: Swara-Frequency Mapping
-with open("swara_freq.json","r") as f:
-    swara_freq = json.load(f)
-
-# Table II: Plaintext Alphabet-Swara Sequence Mapping
-with open("arohan_swara.json","r") as f:
-    arohana_swara = json.load(f)
-
-with open("two_three_four_five_comb.json","r") as f:
-    two_three_four_five_comb = json.load(f)
-
-raga="mayamalavagowla"
-amsa_swara = "Pa"
-
 plaintext = "Knowledge is power"
 print(plaintext)
-
-# Encryption
-all_possible_two_comb = two_three_four_five_comb[0]
-all_possible_three_comb = two_three_four_five_comb[1]
-import random
-random_two_list=[]
-for i in range(10):
-    random_two_list.append(random.sample(range(15),15))
-random_three_list=[]
-for i in range(10):
-    random_three_list.append(random.sample(range(11),11))
-look_up_tables = []
-two_list = ['A', 'C', 'D', 'E', 'F', 'H', 'I', 'L', 'M', 'N', 'O', 'R', 'S', 'T', 'U']
-three_list = ['B', 'G', 'J', 'K', 'P', 'Q', 'V', 'W', 'X', 'Y', 'Z']
-for i in range(10):
-    look_up_table = {}
-    for j in range(15):
-        look_up_table[two_list[j]]=" ".join(all_possible_two_comb[random_two_list[i][j]])
-    for j in range(11):
-        look_up_table[three_list[j]]=" ".join(all_possible_three_comb[random_three_list[i][j]])
-    # print(look_up_table)
-    look_up_tables.append(look_up_table)
-
-
-alphabet_swara = best_look_up_table(look_up_tables,plaintext)
-# now look_up_tables contains 10 look up tables
-
-ciphertext = encrypt(plaintext, alphabet_swara)
+raga = "Mayamalavagowla"
+ciphertext = encrypt(plaintext, alphabet_swara_Mayamalavagowla)
 print("Ciphertext:", ciphertext)
+freq_list = generate_freqency_list(ciphertext)
+
+sampling_rate=44100
+music = generate_audio_sequence(freq_list)
 
 
-freq_list = generate_freqency_list(ciphertext,arohana_swara[raga])
-print(raga)
-
-audio_file = "audio_sequence.wav"
-sampling_rate=4000
-duration=0.25
-music = generate_audio_sequence(freq_list,duration=duration,sampling_rate=sampling_rate,output_file=audio_file)
-
-
-# Decryption
 audio_file = "audio_sequence.wav"  # Replace with your audio file path
-sampling_rate=4000
-duration=0.25
+duration=0.5
 window_size = int(duration * sampling_rate)  # Window size for FFT (0.5 seconds)
 overlap = 0
 swara_list = get_frequency_list(audio_file, window_size, overlap,swara_freq)
 
 decrypted_cypher = decrypt_swara(swara_list)
 print(decrypted_cypher)
-
-decrypted_text = decrypt_ciphertext(decrypted_cypher,alphabet_swara)
+decrypted_text = decrypt_ciphertext(decrypted_cypher,alphabet_swara_Mayamalavagowla)
 print("Decrypted text:", decrypted_text)
