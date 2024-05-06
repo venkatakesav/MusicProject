@@ -1,27 +1,17 @@
 import numpy as np
 from scipy.io.wavfile import write
 from scipy.io import wavfile
+import json
 
 # Table I: Swara-Frequency Mapping
-swara_freq = {
-    'Sa': 260.29, 'Ri1': 277.84, 'Ri2':293.08, 'Ga1': 293.08, 'Ri3':309.66, 'Ga2': 309.66,
-    'Ga3': 330.28, 'Ma1': 346.90, 'Ma2': 372.19, 'Pa': 390.61,
-    'Dha1': 414.82, 'Dha2':440.00, 'Ni1': 440.00, 'Dha3':462.33, 'Ni2': 462.33, 'Ni3': 495.84
-}
+with open("swara_freq.json","r") as f:
+    swara_freq = json.load(f)
 
 # Table II: Plaintext Alphabet-Swara Sequence Mapping
-alphabet_swara_Mayamalavagowla = {
-    'A': 'Ma Dha', 'B': 'Ri Dha Ni', 'C': 'Sa Ma', 'D': 'Ri Ga',
-    'E': 'Dha Ni', 'F': 'Sa Ri', 'G': 'Ga Ma Ni', 'H': 'Ri Dha',
-    'I': 'Ga Ni', 'J': 'Ri Ga Dha', 'K': 'Ri Ma Dha', 'L': 'Sa Ni',
-    'M': 'Sa Ga', 'N': 'Ga Dha', 'O': 'Ga Ma', 'P': 'Ga Ma Dha',
-    'Q': 'Ri Ga Ni', 'R': 'Ri Ma', 'S': 'Ri Ni', 'T': 'Ma Ni',
-    'U': 'Sa Dha', 'V': 'Ri Ma Ni', 'W': 'Ma Dha Ni', 'X': 'Ri Ga Ma',
-    'Y': 'Ga Dha Ni', 'Z': 'Sa Ma Ni', ' ': 'Pa Pa'
-}
-
-def get_value(alphabet_swara, key):
-    return alphabet_swara.get(key, None)
+with open("alphabet_swara.json","r") as f:
+    alphabet_swara = json.load(f)
+    
+raga="mayamalavagowla"
 
 def get_key(alphabet_swara, value):
     for k, v in alphabet_swara.items():
@@ -39,7 +29,17 @@ def encrypt(plaintext, alphabet_swara):
             ciphertext += ' Pa'
     return ciphertext
 
-def map_shorthand_swaras(swaras):
+def map_shorthand_swaras(swaras,raga_seq):
+    for i,swara in enumerate(swaras):
+        #get index of substring swara in raga_seq
+        index = raga_seq.find(swara)
+        if(swara!="Pa" and swara!="Dha" and swara!="Sa"):
+            num = raga_seq[index+2:index+3]
+            swaras[i] = swara+num
+        elif(swara=="Dha"):    
+            num = raga_seq[index+3:index+4]
+            swaras[i] = swara+num
+    return swaras
     shorthand_to_full = {
         'Ri': 'Ri1',
         'Ga': 'Ga3',
@@ -50,6 +50,12 @@ def map_shorthand_swaras(swaras):
     return [shorthand_to_full.get(swara, swara) for swara in swaras]
 
 def reverse_map_full_swaras(full_swaras):
+    for (i,swara) in enumerate(full_swaras):
+        if(len(swara))==3:
+            full_swaras[i]=swara[:2]
+        elif(len(swara))==4:
+            full_swaras[i]=swara[:3]
+    return full_swaras
     full_to_shorthand = {
         'Ri1': 'Ri',
         'Ga3': 'Ga',
@@ -61,7 +67,7 @@ def reverse_map_full_swaras(full_swaras):
 
 
 # Music generation
-def generate_freqency_list(swara_sequence):
+def generate_freqency_list(swara_sequence,raga_seq):
     swara_list = []
     for word in swara_sequence.split('Pa Pa'):
         for character in word.split("Pa"):
@@ -69,7 +75,7 @@ def generate_freqency_list(swara_sequence):
                 swara_list.extend(character.split())
                 swara_list.extend("Pa".split())
         swara_list.extend("Pa".split())
-    swara_list = map_shorthand_swaras(swara_list)
+    swara_list = map_shorthand_swaras(swara_list,raga_seq)
     freq_list = []
     for swara in swara_list:
         freq_list.append(swara_freq[swara])
@@ -173,11 +179,15 @@ def decrypt_swara(swara_list):
 # Example usage
 plaintext = "Knowledge is power"
 print(plaintext)
-raga = "Mayamalavagowla"
-ciphertext = encrypt(plaintext, alphabet_swara_Mayamalavagowla)
+raga = "mayamalavagowla"
+amsa_swara = "Pa"
+ciphertext = encrypt(plaintext, alphabet_swara["mayamalavagowla"])
 print("Ciphertext:", ciphertext)
-freq_list = generate_freqency_list(ciphertext)
+with open("arohan_swara.json","r") as f:
+    arohana_swara = json.load(f)
 
+freq_list = generate_freqency_list(ciphertext,arohana_swara[raga])
+print(raga)
 sampling_rate=44100
 music = generate_audio_sequence(freq_list)
 
@@ -190,5 +200,5 @@ swara_list = get_frequency_list(audio_file, window_size, overlap,swara_freq)
 
 decrypted_cypher = decrypt_swara(swara_list)
 print(decrypted_cypher)
-decrypted_text = decrypt_ciphertext(decrypted_cypher,alphabet_swara_Mayamalavagowla)
+decrypted_text = decrypt_ciphertext(decrypted_cypher,alphabet_swara["mayamalavagowla"])
 print("Decrypted text:", decrypted_text)
